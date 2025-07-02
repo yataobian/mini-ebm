@@ -1,5 +1,5 @@
 # Minimalist EBM Library in PyTorch
-# 极简 PyTorch EBM 库
+# 极简 EBM 库
 
 This repository provides a minimalist, educational implementation of Energy-Based Models (EBMs) in PyTorch. Its goal is to serve as a clear and simple framework for understanding and comparing different EBM training algorithms.
 
@@ -65,7 +65,11 @@ mini-ebm/
 ├── toy_data.py             # Functions for generating 2D toy data / 生成 2D 玩具数据的函数
 ├── models.py               # Definition of the EnergyNetwork (MLP) / EnergyNetwork (MLP) 的定义
 ├── samplers.py             # LangevinSampler class / LangevinSampler 类
-├── losses.py               # CD, DSM, and NCE loss implementations / CD、DSM 和 NCE 损失的实现
+├── losses/                 # Loss functions package / 损失函数包
+│   ├── __init__.py         # Package interface / 包接口
+│   ├── cd_variants.py      # Contrastive Divergence variants / 对比散度变体
+│   ├── sm_variants.py      # Score Matching variants / 分数匹配变体
+│   └── nce_variants.py     # Noise Contrastive Estimation variants / 噪声对比估计变体
 ├── visualize.py            # Plotting functions for energy landscapes / 能量曲面绘图函数
 ├── train.py                # Main training script / 主训练脚本
 └── examples/               # Example shell scripts / 示例 shell 脚本

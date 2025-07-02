@@ -108,10 +108,10 @@ if __name__ == '__main__':
     parser.add_argument('--output_dir', type=str, default='./outputs/default', help='Directory to save plots.')
     parser.add_argument('--plot_interval', type=int, default=10, help='Interval (in epochs) for saving plots.')
 
-    # CD arguments / CD 相关参数
+    # CD arguments / CD 相关参数 
     parser.add_argument('--cd_k', type=int, default=10, help='Number of Langevin steps for CD.')
     parser.add_argument('--langevin_step', type=float, default=0.1, help='Step size for Langevin dynamics.')
-    parser.add_argument('--langevin_noise', type=float, default=0.01, help='Noise standard deviation for Langevin dynamics.')
+    parser.add_argument('--langevin_noise', type=float, default=None, help='Noise standard deviation for Langevin dynamics. None: use sqrt(step_size).')
 
     # DSM arguments / DSM 相关参数
     parser.add_argument('--dsm_sigma', type=float, default=0.1, help='Noise standard deviation for DSM.')
