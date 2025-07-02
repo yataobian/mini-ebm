@@ -8,19 +8,24 @@ class LangevinSampler:
     实现了用于 EBM 的朗之万动力学采样。
     该采样器通过跟随能量函数的梯度并添加噪声来生成负样本（幻想粒子）。
     """
-    def __init__(self, energy_network, step_size, noise_std):
+    def __init__(self, energy_network, step_size, noise_std=None):
         """
         Args:
             energy_network (torch.nn.Module): The EBM model that computes energy.
                                               计算能量的 EBM 模型。
             step_size (float): The step size for the Langevin update (alpha).
                                朗之万更新的步长 (alpha)。
-            noise_std (float): The standard deviation of the Gaussian noise.
-                               高斯噪声的标准差。
+            noise_std (float, optional): The standard deviation of the Gaussian noise.
+                                         For standard Langevin dynamics, this should be sqrt(step_size).
+                                         If None, uses sqrt(step_size) automatically.
+                                         高斯噪声的标准差。对于标准朗之万动力学，
+                                         这应该是 sqrt(step_size)。如果为 None，自动使用 sqrt(step_size)。
         """
         self.energy_network = energy_network
         self.step_size = step_size
-        self.noise_std = noise_std
+        # Use standard Langevin noise if not specified
+        # 如果未指定，使用标准朗之万噪声
+        self.noise_std = noise_std if noise_std is not None else (step_size ** 0.5)
 
     def sample(self, x_init, n_steps):
         """
@@ -55,16 +60,14 @@ class LangevinSampler:
             energy.backward()
             grad = x.grad
 
-            # Langevin update rule:
-            # x_t+1 = x_t - (step_size / 2) * grad + sqrt(step_size) * noise
-            # For simplicity, we use a common variant:
-            # x_t+1 = x_t - step_size * grad + noise_std * noise
-            # 朗之万更新规则：
-            # x_t+1 = x_t - (step_size / 2) * grad + sqrt(step_size) * noise
-            # 为简单起见，我们使用一个常见的变体：
-            # x_t+1 = x_t - step_size * grad + noise_std * noise
+            # Standard Langevin update rule:
+            # x_t+1 = x_t - (step_size / 2) * ∇E(x_t) + sqrt(step_size) * ε_t
+            # where ε_t ~ N(0, I) is standard Gaussian noise
+            # 标准朗之万更新规则：
+            # x_t+1 = x_t - (step_size / 2) * ∇E(x_t) + sqrt(step_size) * ε_t
+            # 其中 ε_t ~ N(0, I) 是标准高斯噪声
             with torch.no_grad():
-                x = x - self.step_size * grad + self.noise_std * torch.randn_like(x)
+                x = x - (self.step_size / 2.0) * grad + self.noise_std * torch.randn_like(x)
             
             # Reset gradients for the next iteration.
             # 为下一次迭代重置梯度。
