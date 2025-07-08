@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from toy_data import get_toy_data
 from models import EnergyNet
 from samplers import LangevinSampler
-from losses import ContrastiveDivergenceLoss, DenoisingScoreMatchingLoss, NoiseContrastiveEstimationLoss
+from losses import ContrastiveDivergenceLoss, DenoisingScoreMatchingLoss, NCELoss, AdaptiveNCELoss
 from visualize import plot_energy_landscape
 
 def main(args):
@@ -41,10 +41,28 @@ def main(args):
     elif args.loss_type == 'dsm':
         loss_fn = DenoisingScoreMatchingLoss(energy_network, sigma=args.dsm_sigma)
     elif args.loss_type == 'nce':
-        # For NCE, we need a noise distribution. A simple Gaussian is used here.
-        # 对于 NCE，我们需要一个噪声分布。这里使用一个简单的高斯分布。
-        noise_dist = torch.distributions.Normal(loc=0.0, scale=1.5)
-        loss_fn = NoiseContrastiveEstimationLoss(energy_network, noise_dist, noise_ratio=args.nce_noise_ratio)
+        # For NCE, we need a noise distribution. A simple 2D Gaussian is used here.
+        # 对于 NCE，我们需要一个噪声分布。这里使用一个简单的二维高斯分布。
+        # Create a 2D multivariate normal distribution to match the data dimensions
+        # 创建一个二维多元正态分布以匹配数据维度
+        noise_mean = torch.zeros(2)
+        noise_cov = torch.eye(2) * (1.5 ** 2)  # Diagonal covariance matrix
+        noise_dist = torch.distributions.MultivariateNormal(noise_mean, noise_cov)
+        loss_fn = NCELoss(energy_network, noise_dist,
+                          noise_ratio=args.nce_noise_ratio)
+    elif args.loss_type == 'adaptive_nce':
+        # For adaptive NCE, we need a noise distribution. A simple 2D Gaussian is used here.
+        # 对于自适应 NCE，我们需要一个噪声分布。这里使用一个简单的二维高斯分布。
+        # Create a 2D multivariate normal distribution to match the data dimensions
+        # 创建一个二维多元正态分布以匹配数据维度
+        noise_mean = torch.zeros(2)
+        noise_cov = torch.eye(2) * (1.5 ** 2)  # Diagonal covariance matrix
+        noise_dist = torch.distributions.MultivariateNormal(noise_mean, noise_cov)
+        loss_fn = AdaptiveNCELoss(energy_network, noise_dist,
+                                  noise_ratio=args.nce_noise_ratio,
+                                  noise_lr=args.adaptive_nce_noise_lr,
+                                  self_normalized=False)
+    
     else:
         raise ValueError(f"Unknown loss type: {args.loss_type}")
 
@@ -100,7 +118,7 @@ if __name__ == '__main__':
     
     # General arguments / 通用参数
     parser.add_argument('--dataset', type=str, default='gmm', choices=['gmm', 'two_moons', 'checkerboard'], help='Toy dataset to use.')
-    parser.add_argument('--loss_type', type=str, default='cd', choices=['cd', 'dsm', 'nce'], help='Loss function to use for training.')
+    parser.add_argument('--loss_type', type=str, default='cd', choices=['cd', 'dsm', 'nce', 'adaptive_nce'], help='Loss function to use for training.')
     parser.add_argument('--num_samples', type=int, default=1000, help='Number of data points.')
     parser.add_argument('--batch_size', type=int, default=128, help='Batch size for training.')
     parser.add_argument('--epochs', type=int, default=200, help='Number of training epochs.')
@@ -118,6 +136,7 @@ if __name__ == '__main__':
 
     # NCE arguments / NCE 相关参数
     parser.add_argument('--nce_noise_ratio', type=int, default=1, help='Number of noise samples per data sample for NCE.')
+    parser.add_argument('--adaptive_nce_noise_lr', type=float, default=0.01, help='Learning rate for noise distribution parameters in adaptive NCE.')
 
     args = parser.parse_args()
     main(args)

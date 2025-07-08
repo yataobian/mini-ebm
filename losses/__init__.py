@@ -13,7 +13,8 @@ This package contains various loss functions for training EBMs, including:
 # Import NCE variants from nce_variants.py
 # 从 nce_variants.py 导入 NCE 变体
 from .nce_variants import (
-    NoiseContrastiveEstimationLoss
+    NCELoss,
+    AdaptiveNCELoss
 )
 
 # Import Score Matching variants from sm_variants.py
@@ -38,7 +39,8 @@ __all__ = [
     'DenoisingScoreMatchingLoss',
     
     # Noise Contrastive Estimation variants / 噪声对比估计变体
-    'NoiseContrastiveEstimationLoss',
+    'NCELoss',
+    'AdaptiveNCELoss',
     
     # Contrastive Divergence variants / 对比散度变体
     'ContrastiveDivergenceLoss',
