@@ -1,4 +1,5 @@
 import torch
+import warnings
 
 class LangevinSampler:
     """
@@ -8,7 +9,7 @@ class LangevinSampler:
     实现了用于 EBM 的朗之万动力学采样。
     该采样器通过跟随能量函数的梯度并添加噪声来生成负样本（幻想粒子）。
     """
-    def __init__(self, energy_network, step_size, noise_std=None):
+    def __init__(self, energy_network, step_size, noise_std=None, grad_clip_norm=10.0):
         """
         Args:
             energy_network (torch.nn.Module): The EBM model that computes energy.
@@ -20,12 +21,15 @@ class LangevinSampler:
                                          If None, uses sqrt(step_size) automatically.
                                          高斯噪声的标准差。对于标准朗之万动力学，
                                          这应该是 sqrt(step_size)。如果为 None，自动使用 sqrt(step_size)。
+            grad_clip_norm (float): Maximum norm for gradient clipping. Set to None to disable.
+                                   梯度裁剪的最大范数。设为 None 禁用。
         """
         self.energy_network = energy_network
         self.step_size = step_size
         # Use standard Langevin noise if not specified
         # 如果未指定，使用标准朗之万噪声
         self.noise_std = noise_std if noise_std is not None else (step_size ** 0.5)
+        self.grad_clip_norm = grad_clip_norm
 
     def sample(self, x_init, n_steps):
         """
@@ -55,10 +59,25 @@ class LangevinSampler:
             # 计算能量。sum() 是为了得到一个标量以便进行 backward()。
             energy = self.energy_network(x).sum()
             
+            # Check for non-finite energy / 检查能量是否有限
+            if not torch.isfinite(energy):
+                warnings.warn(f"Non-finite energy detected: {energy}")
+                break
+            
             # Compute the gradient of the energy with respect to x.
             # 计算能量关于 x 的梯度。
-            energy.backward()
-            grad = x.grad
+            grad = torch.autograd.grad(energy, x)[0]
+            
+            # Check for non-finite gradients / 检查梯度是否有限
+            if not torch.isfinite(grad).all():
+                warnings.warn("Non-finite gradients detected")
+                break
+            
+            # Gradient clipping / 梯度裁剪
+            if self.grad_clip_norm is not None:
+                grad_norm = torch.norm(grad)
+                if grad_norm > self.grad_clip_norm:
+                    grad = grad * (self.grad_clip_norm / grad_norm)
 
             # Standard Langevin update rule:
             # x_t+1 = x_t - (step_size / 2) * ∇E(x_t) + sqrt(step_size) * ε_t
@@ -68,10 +87,6 @@ class LangevinSampler:
             # 其中 ε_t ~ N(0, I) 是标准高斯噪声
             with torch.no_grad():
                 x = x - (self.step_size / 2.0) * grad + self.noise_std * torch.randn_like(x)
-            
-            # Reset gradients for the next iteration.
-            # 为下一次迭代重置梯度。
-            if x.grad is not None:
-                x.grad.zero_()
         
         return x.detach()
+
