@@ -68,7 +68,13 @@ def main(args):
 
     # --- Optimizer ---
     # --- 优化器 ---
-    optimizer = optim.Adam(energy_network.parameters(), lr=args.lr)
+    parameters = list(energy_network.parameters())
+    if args.loss_type == 'adaptive_nce':
+        parameters += [loss_fn.noise_mean, loss_fn.noise_log_std]  
+        if not loss_fn.self_normalized:
+            parameters += [loss_fn.log_partition]
+    
+    optimizer = optim.Adam(parameters, lr=args.lr)
 
     # --- Training Loop ---
     # --- 训练循环 ---
