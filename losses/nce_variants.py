@@ -10,6 +10,22 @@ class NCELoss:
     实现了噪声对比估计 (NCE) 损失。
     这将密度估计问题重构为一个二元分类问题：区分真实数据和来自已知噪声分布的样本。
     
+    NCE损失的数学表达式 / Mathematical expression of NCE loss:
+    
+    目标函数 / Objective:
+       min -E_{x~p_d}[log P(D=1|x)] - ν·E_{x~p_n}[log P(D=0|x)]
+    
+     其中 / Where:
+       P(D=1|x) = exp(-E(x) + log Z) / (exp(-E(x) + log Z) + ν·p_n(x))
+       P(D=0|x) = ν·p_n(x) / (exp(-E(x) + log Z) + ν·p_n(x))
+    
+     记号说明 / Notation:
+       E(x): 能量函数 / Energy function
+       Z: 配分函数 / Partition function
+       ν: 噪声比 (noise ratio)
+       p_n(x): 噪声分布的概率密度 / Noise distribution density
+       p_d: 数据分布 / Data distribution
+    
     References / 参考文献:
     - Gutmann, M., & Hyvärinen, A. (2010). Noise-contrastive estimation: A new estimation 
       principle for unnormalized statistical models. In Proceedings of the thirteenth 
@@ -84,11 +100,11 @@ class NCELoss:
         
         # Compute noise distribution log probabilities
         # 计算噪声分布的对数概率
-        data_noise_logprobs = self.noise_dist.log_prob(data_samples)
+        data_noise_logprobs = self.noise_dist.log_prob(data_samples) # 数据样本在噪声分布下的对数概率 log(p_noise(x_d))
         if len(data_noise_logprobs.shape) > 1:
             data_noise_logprobs = data_noise_logprobs.sum(dim=tuple(range(1, len(data_noise_logprobs.shape))))
         
-        noise_noise_logprobs = self.noise_dist.log_prob(noise_samples)
+        noise_noise_logprobs = self.noise_dist.log_prob(noise_samples) # 噪声样本在噪声分布下的对数概率 log(p_noise(x_n))
         if len(noise_noise_logprobs.shape) > 1:
             noise_noise_logprobs = noise_noise_logprobs.sum(dim=tuple(range(1, len(noise_noise_logprobs.shape))))
         
@@ -118,7 +134,7 @@ class NCELoss:
         data_loss = -torch.log(data_nce_probs + 1e-8).mean()
         noise_loss = -torch.log(noise_nce_probs + 1e-8).mean()
         
-        total_loss = data_loss + noise_loss
+        total_loss = data_loss + noise_loss * self.noise_ratio
         return total_loss
 
 
@@ -127,6 +143,28 @@ class AdaptiveNCELoss:
     """
     Adaptive NCE that learns the noise distribution parameters.
     自适应NCE，学习噪声分布参数。
+       
+    Adaptive NCE的数学公式 / Mathematical formula for Adaptive NCE:
+
+    损失函数 / Loss function:
+      L = -E_{x~p_d}[log P(D=1|x)] - ν·E_{x~p_n}[log P(D=0|x)] +  λ·KL(p_d || p_n)
+
+    其中 / Where:
+      P(D=1|x) = exp(-E(x) + log Z) / (exp(-E(x) + log Z) + ν·p_n(x; θ_n))
+      P(D=0|x) = ν·p_n(x; θ_n) / (exp(-E(x) + log Z) + ν·p_n(x; θ_n))
+
+    说明 / Explanation:
+      - E(x): 能量函数 / Energy function
+      - Z: 配分函数 / Partition function
+      - ν: 噪声比 (noise ratio)
+      - λ: 自适应参数 (adaptation parameter)
+      - p_n(x; θ_n): 噪声分布的概率密度，参数可学习 / Noise distribution density with learnable parameters θ_n
+      - p_d: 数据分布 / Data distribution
+      
+    Relevant References / 相关参考文献:
+    - Ceylan, Ciwan, and Michael U. Gutmann. "Conditional noise-contrastive estimation of unnormalised models." In International Conference on Machine Learning, pp. 726-734. PMLR, 2018.
+
+
     """
     def __init__(self, energy_network, initial_noise_dist, noise_ratio=1, 
                  noise_lr=0.01, self_normalized=True):
@@ -182,7 +220,7 @@ class AdaptiveNCELoss:
             noise_energies = noise_energies.squeeze(-1)
         
         # Compute noise log probabilities
-        data_noise_logprobs = noise_dist.log_prob(data_samples)
+        data_noise_logprobs = noise_dist.log_prob(data_samples)   # log p_noise(x_d)
         if len(data_noise_logprobs.shape) > 1:
             data_noise_logprobs = data_noise_logprobs.sum(dim=tuple(range(1, len(data_noise_logprobs.shape))))
         
@@ -206,10 +244,10 @@ class AdaptiveNCELoss:
         data_nce_probs = torch.sigmoid(data_logits)
         noise_nce_probs = torch.sigmoid(-noise_logits)
         
-        nce_loss = -torch.log(data_nce_probs + 1e-8).mean() - torch.log(noise_nce_probs + 1e-8).mean()
+        nce_loss = -torch.log(data_nce_probs + 1e-8).mean() - torch.log(noise_nce_probs + 1e-8).mean()*self.noise_ratio
         
-        # Additional loss to adapt noise distribution (minimize KL divergence)
-        # 附加损失以适应噪声分布（最小化KL散度）
+        # Additional loss to adapt noise distribution (minimize KL divergence KL(p_data || p_noise) )   
+        # 附加损失以适应噪声分布（最小化KL散度 KL(p_data || p_noise) ）
         noise_adaptation_loss = -data_noise_logprobs.mean()
         
         total_loss = nce_loss + self.noise_lr * noise_adaptation_loss
