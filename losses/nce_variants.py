@@ -82,6 +82,8 @@ class NCELoss:
         batch_size = data_samples.shape[0]
         device = data_samples.device
 
+        if hasattr(self, "log_partition"):
+            self.log_partition = self.log_partition.to(device)
         # Generate noise samples from the known noise distribution.
         # 从已知的噪声分布中生成噪声样本。
         noise_samples = self.noise_dist.sample((batch_size * self.noise_ratio,)).to(device)
@@ -202,6 +204,8 @@ class AdaptiveNCELoss:
         batch_size = data_samples.shape[0]
         device = data_samples.device
         
+        if hasattr(self, "log_partition"):
+            self.log_partition = self.log_partition.to(device)
         # Get current noise distribution
         noise_dist = self.get_noise_dist()
         
