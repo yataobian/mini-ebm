@@ -172,3 +172,6 @@ Thumbs.db
 
 # Weights & Biases
 wandb/ 
+local/dbg.ipynb
+advanced/WAKE_SLEEP_ANALYSIS.md
+local/1994-The Helmholtz Machine.pdf

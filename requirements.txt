@@ -3,3 +3,6 @@ numpy
 matplotlib
 tqdm
 scikit-learn
+ipywidgets
+jupyterlab
+ipympl

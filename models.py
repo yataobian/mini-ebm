@@ -8,22 +8,29 @@ class EnergyNet(nn.Module):
     一个简单的多层感知机（MLP），用于建模能量函数。
     它接收一个二维坐标作为输入，并输出一个标量能量值。
     """
-    def __init__(self, input_dim=2, hidden_dim=128):
+    def __init__(self, input_dim=2, hidden_dim=128, n_hidden_layers=2):
         """
         Args:
             input_dim (int): The dimensionality of the input data (should be 2 for toy data).
                              输入数据的维度（对于玩具数据应为 2）。
             hidden_dim (int): The number of neurons in the hidden layers.
                               隐藏层中的神经元数量。
+            n_hidden_layers (int): The number of hidden layers (default 2 preserves original architecture).
+                                   隐藏层数量（默认 2 保持原始架构）。
         """
         super().__init__()
-        self.net = nn.Sequential(
-            nn.Linear(input_dim, hidden_dim),
-            nn.ReLU(),
-            nn.Linear(hidden_dim, hidden_dim),
-            nn.ReLU(),
-            nn.Linear(hidden_dim, 1)
-        )
+        layers = []
+        # Input to first hidden layer
+        layers.append(nn.Linear(input_dim, hidden_dim))
+        layers.append(nn.ReLU())
+        # Additional hidden layers
+        for _ in range(n_hidden_layers - 1):
+            layers.append(nn.Linear(hidden_dim, hidden_dim))
+            layers.append(nn.ReLU())
+        # Final output layer
+        layers.append(nn.Linear(hidden_dim, 1))
+
+        self.net = nn.Sequential(*layers)
 
     def forward(self, x):
         """

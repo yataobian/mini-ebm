@@ -31,7 +31,7 @@ class LangevinSampler:
         self.noise_std = noise_std if noise_std is not None else (step_size ** 0.5)
         self.grad_clip_norm = grad_clip_norm
 
-    def sample(self, x_init, n_steps):
+    def sample(self, x_init, n_steps, return_trajectory=False):
         """
         Generates samples using k-step Langevin Dynamics.
         使用 k 步朗之万动力学生成样本。
@@ -41,14 +41,24 @@ class LangevinSampler:
                                    MCMC 链的起始点。
             n_steps (int): The number of MCMC steps (k in CD-k).
                            MCMC 的步数 (CD-k 中的 k)。
+            return_trajectory (bool): If True, return the full trajectory of shape (n_steps+1, batch_size, dim).
+                                      If False (default), return only the final sample. Backward compatible.
+                                      若为 True，返回完整轨迹，形状为 (n_steps+1, batch_size, dim)。
+                                      若为 False（默认），仅返回最终样本，与旧版兼容。
 
         Returns:
-            torch.Tensor: The final samples after n_steps.
-                          n_steps 后的最终样本。
+            torch.Tensor: If return_trajectory=False: final samples of shape (batch_size, dim).
+                          If return_trajectory=True: full trajectory of shape (n_steps+1, batch_size, dim).
+                          如果 return_trajectory=False：最终样本，形状 (batch_size, dim)。
+                          如果 return_trajectory=True：完整轨迹，形状 (n_steps+1, batch_size, dim)。
         """
         # Clone the initial tensor to avoid modifying it in place.
         # 克隆初始张量以避免原地修改。
         x = x_init.clone().detach()
+
+        # Optionally track full trajectory for visualization/teaching purposes.
+        # 可选地追踪完整轨迹，用于可视化/教学。
+        trajectory = [x.clone().detach()] if return_trajectory else None
 
         for _ in range(n_steps):
             # We need gradients of the energy with respect to the samples.
@@ -87,6 +97,14 @@ class LangevinSampler:
             # 其中 ε_t ~ N(0, I) 是标准高斯噪声
             with torch.no_grad():
                 x = x - (self.step_size / 2.0) * grad + self.noise_std * torch.randn_like(x)
-        
-        return x.detach()
+
+            # Optionally append to trajectory (early break still allows shorter trajectory).
+            # 可选地追加到轨迹（提前中止时轨迹会比 n_steps+1 短）。
+            if return_trajectory:
+                trajectory.append(x.clone().detach())
+
+        if return_trajectory:
+            return torch.stack(trajectory, dim=0)
+        else:
+            return x.detach()
 

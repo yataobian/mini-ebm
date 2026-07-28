@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from toy_data import get_toy_data
 from models import EnergyNet
 from samplers import LangevinSampler
-from losses import ContrastiveDivergenceLoss, DenoisingScoreMatchingLoss, NCELoss, AdaptiveNCELoss
+from losses import ContrastiveDivergenceLoss, PersistentContrastiveDivergenceLoss, FastPersistentContrastiveDivergenceLoss, DenoisingScoreMatchingLoss, NCELoss, AdaptiveNCELoss
 from visualize import plot_energy_landscape
 
 def main(args):
@@ -35,9 +35,20 @@ def main(args):
 
     # --- Loss and Sampler Initialization ---
     # --- 损失和采样器初始化 ---
-    if args.loss_type == 'cd':
+    if args.loss_type in ['cd', 'pcd', 'fast_pcd']:
         sampler = LangevinSampler(energy_network, args.langevin_step, args.langevin_noise)
+
+    if args.loss_type == 'cd':
         loss_fn = ContrastiveDivergenceLoss(energy_network, sampler, k=args.cd_k)
+    elif args.loss_type == 'pcd':
+        loss_fn = PersistentContrastiveDivergenceLoss(energy_network, sampler, k=args.cd_k,
+                                                       n_persistent=args.pcd_n_persistent,
+                                                       buffer_init_std=args.pcd_buffer_init_std)
+    elif args.loss_type == 'fast_pcd':
+        loss_fn = FastPersistentContrastiveDivergenceLoss(energy_network, sampler, k=args.cd_k,
+                                                          n_chains=args.fast_pcd_n_chains,
+                                                          restart_prob=args.fast_pcd_restart_prob,
+                                                          buffer_init_std=args.fast_pcd_buffer_init_std)
     elif args.loss_type == 'dsm':
         loss_fn = DenoisingScoreMatchingLoss(energy_network, sigma=args.dsm_sigma)
     elif args.loss_type == 'nce':
@@ -96,10 +107,10 @@ def main(args):
         if (epoch + 1) % args.plot_interval == 0:
             fig, ax = plt.subplots(figsize=(8, 8))
             
-            # Get negative samples for visualization if using CD
-            # 如果使用 CD，获取负样本用于可视化
+            # Get negative samples for visualization if available
+            # 如果有负样本，获取用于可视化
             neg_samples = None
-            if args.loss_type == 'cd' and hasattr(loss_fn, 'last_negative_samples'):
+            if hasattr(loss_fn, 'last_negative_samples'):
                 neg_samples = loss_fn.last_negative_samples.cpu().numpy()
 
             plot_energy_landscape(
@@ -124,7 +135,7 @@ if __name__ == '__main__':
     
     # General arguments / 通用参数
     parser.add_argument('--dataset', type=str, default='gmm', choices=['gmm', 'two_moons', 'checkerboard'], help='Toy dataset to use.')
-    parser.add_argument('--loss_type', type=str, default='cd', choices=['cd', 'dsm', 'nce', 'adaptive_nce'], help='Loss function to use for training.')
+    parser.add_argument('--loss_type', type=str, default='cd', choices=['cd', 'pcd', 'fast_pcd', 'dsm', 'nce', 'adaptive_nce'], help='Loss function to use for training.')
     parser.add_argument('--num_samples', type=int, default=1000, help='Number of data points.')
     parser.add_argument('--batch_size', type=int, default=128, help='Batch size for training.')
     parser.add_argument('--epochs', type=int, default=200, help='Number of training epochs.')
@@ -132,10 +143,19 @@ if __name__ == '__main__':
     parser.add_argument('--output_dir', type=str, default='./outputs/default', help='Directory to save plots.')
     parser.add_argument('--plot_interval', type=int, default=10, help='Interval (in epochs) for saving plots.')
 
-    # CD arguments / CD 相关参数 
+    # CD arguments / CD 相关参数
     parser.add_argument('--cd_k', type=int, default=10, help='Number of Langevin steps for CD.')
     parser.add_argument('--langevin_step', type=float, default=0.1, help='Step size for Langevin dynamics.')
     parser.add_argument('--langevin_noise', type=float, default=None, help='Noise standard deviation for Langevin dynamics. None: use sqrt(step_size).')
+
+    # PCD arguments / PCD 相关参数
+    parser.add_argument('--pcd_n_persistent', type=int, default=100, help='Number of persistent chains for PCD.')
+    parser.add_argument('--pcd_buffer_init_std', type=float, default=1.0, help='Initialization std for persistent buffer in PCD.')
+
+    # Fast PCD arguments / FastPCD 相关参数
+    parser.add_argument('--fast_pcd_n_chains', type=int, default=20, help='Number of parallel chains for FastPCD.')
+    parser.add_argument('--fast_pcd_restart_prob', type=float, default=0.01, help='Probability of restarting a chain in FastPCD.')
+    parser.add_argument('--fast_pcd_buffer_init_std', type=float, default=1.0, help='Initialization std for buffer in FastPCD.')
 
     # DSM arguments / DSM 相关参数
     parser.add_argument('--dsm_sigma', type=float, default=0.1, help='Noise standard deviation for DSM.')
