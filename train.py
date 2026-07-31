@@ -56,8 +56,8 @@ def main(args):
         # 对于 NCE，我们需要一个噪声分布。这里使用一个简单的二维高斯分布。
         # Create a 2D multivariate normal distribution to match the data dimensions
         # 创建一个二维多元正态分布以匹配数据维度
-        noise_mean = torch.zeros(2)
-        noise_cov = torch.eye(2) * (1.5 ** 2)  # Diagonal covariance matrix
+        noise_mean = torch.zeros(2).to(device)
+        noise_cov = (torch.eye(2) * (1.5 ** 2)).to(device)  # Diagonal covariance matrix
         noise_dist = torch.distributions.MultivariateNormal(noise_mean, noise_cov)
         loss_fn = NCELoss(energy_network, noise_dist,
                           noise_ratio=args.nce_noise_ratio)
@@ -66,8 +66,8 @@ def main(args):
         # 对于自适应 NCE，我们需要一个噪声分布。这里使用一个简单的二维高斯分布。
         # Create a 2D multivariate normal distribution to match the data dimensions
         # 创建一个二维多元正态分布以匹配数据维度
-        noise_mean = torch.zeros(2)
-        noise_cov = torch.eye(2) * (1.5 ** 2)  # Diagonal covariance matrix
+        noise_mean = torch.zeros(2).to(device)
+        noise_cov = (torch.eye(2) * (1.5 ** 2)).to(device)  # Diagonal covariance matrix
         noise_dist = torch.distributions.MultivariateNormal(noise_mean, noise_cov)
         loss_fn = AdaptiveNCELoss(energy_network, noise_dist,
                                   noise_ratio=args.nce_noise_ratio,
