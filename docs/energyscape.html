@@ -1,0 +1,792 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EnergyScape</title>
+<style>
+  :root{
+    --bg: #060810;
+    --panel: #0b0f18;
+    --panel-border: rgba(255,255,255,0.08);
+    --panel-border-strong: rgba(255,255,255,0.14);
+    --text: #dbe4ec;
+    --text-dim: #7c8797;
+    --text-faint: #4b5563;
+    --cyan: #4fe3d4;
+    --amber: #f5b942;
+    --violet: #8b7ff0;
+    --mono: 'SF Mono', 'Cascadia Code', Consolas, 'JetBrains Mono', ui-monospace, Menlo, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', ui-sans-serif, Helvetica, Arial, sans-serif;
+  }
+  *{ box-sizing:border-box; }
+  html,body{
+    margin:0; padding:0; background:var(--bg); color:var(--text);
+    font-family:var(--sans);
+    -webkit-font-smoothing:antialiased;
+  }
+  body{
+    background-image:
+      radial-gradient(ellipse 1200px 700px at 50% -10%, rgba(79,227,212,0.06), transparent 60%),
+      repeating-linear-gradient(0deg, rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 1px, transparent 1px, transparent 3px);
+    min-height:100vh;
+  }
+  .wrap{
+    max-width:1440px; margin:0 auto; padding:1.5rem 1.5rem 3rem;
+  }
+  header{
+    text-align:center; padding:0.5rem 0 1.75rem; position:relative;
+  }
+  header h1{
+    margin:0; font-size:2.1rem; letter-spacing:0.14em; font-weight:700;
+    color:#f2f6f8; text-transform:uppercase;
+    text-shadow: 0 0 24px rgba(79,227,212,0.35);
+  }
+  header h1 span{ color:var(--cyan); }
+  header .tagline{
+    margin:0.5rem auto 0; color:var(--text-dim); font-size:0.92rem;
+    max-width:640px; font-style:italic; letter-spacing:0.01em;
+  }
+  header .rule{
+    height:1px; max-width:520px; margin:1.1rem auto 0;
+    background:linear-gradient(90deg, transparent, var(--panel-border-strong), transparent);
+  }
+
+  .app{
+    display:grid;
+    grid-template-columns: 250px minmax(0,1fr) 270px;
+    gap:1.1rem;
+    align-items:start;
+  }
+  @media (max-width: 1020px){
+    .app{ grid-template-columns: 1fr; }
+    .stage-col{ order:-1; }
+  }
+
+  .panel{
+    background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent 40%), var(--panel);
+    border:1px solid var(--panel-border);
+    border-radius:10px;
+    padding:1.1rem;
+    position:relative;
+  }
+  .panel::before, .panel::after{
+    content:''; position:absolute; width:10px; height:10px;
+    border-color:var(--panel-border-strong); border-style:solid; opacity:0.7;
+  }
+  .panel::before{ top:-1px; left:-1px; border-width:1px 0 0 1px; border-radius:6px 0 0 0; }
+  .panel::after{ bottom:-1px; right:-1px; border-width:0 1px 1px 0; border-radius:0 0 6px 0; }
+
+  .panel h2{
+    font-size:0.7rem; letter-spacing:0.16em; text-transform:uppercase;
+    color:var(--text-dim); margin:0 0 1rem; font-weight:600;
+    display:flex; align-items:center; gap:0.5rem;
+  }
+  .panel h2::after{ content:''; flex:1; height:1px; background:var(--panel-border); }
+
+  /* ---- Controls panel ---- */
+  .ctrl-group{ margin-bottom:1.35rem; }
+  .ctrl-group:last-child{ margin-bottom:0; }
+  .ctrl-label{
+    display:flex; justify-content:space-between; align-items:baseline;
+    font-size:0.74rem; color:var(--text-dim); letter-spacing:0.04em; margin-bottom:0.4rem;
+  }
+  .ctrl-label b{ color:var(--text); font-weight:600; text-transform:none; letter-spacing:0; }
+  .ctrl-val{
+    font-family:var(--mono); font-size:0.8rem; color:var(--cyan);
+    min-width:3.4em; text-align:right;
+  }
+  input[type=range]{
+    -webkit-appearance:none; appearance:none; width:100%; height:20px;
+    background:transparent; cursor:pointer; margin:0;
+  }
+  input[type=range]::-webkit-slider-runnable-track{
+    height:4px; background:linear-gradient(90deg, rgba(79,227,212,0.5), rgba(255,255,255,0.08));
+    border-radius:2px;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; appearance:none;
+    width:14px; height:14px; margin-top:-5px; border-radius:50%;
+    background:#0b0f18; border:2px solid var(--cyan);
+    box-shadow:0 0 8px rgba(79,227,212,0.6);
+  }
+  input[type=range]::-moz-range-track{
+    height:4px; background:linear-gradient(90deg, rgba(79,227,212,0.5), rgba(255,255,255,0.08));
+    border-radius:2px;
+  }
+  input[type=range]::-moz-range-thumb{
+    width:12px; height:12px; border-radius:50%;
+    background:#0b0f18; border:2px solid var(--cyan);
+    box-shadow:0 0 8px rgba(79,227,212,0.6);
+  }
+  .well-dot{ display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:0.4em; }
+
+  .presets{ display:flex; flex-direction:column; gap:0.55rem; margin-top:0.3rem; }
+  .preset-btn{
+    background:rgba(255,255,255,0.03); border:1px solid var(--panel-border);
+    color:var(--text); font-family:var(--sans); font-size:0.78rem;
+    padding:0.6rem 0.7rem; border-radius:6px; text-align:left; cursor:pointer;
+    letter-spacing:0.02em; transition:border-color 0.15s, background 0.15s;
+  }
+  .preset-btn:hover{ border-color:var(--cyan); background:rgba(79,227,212,0.06); }
+  .preset-btn:active{ transform:translateY(1px); }
+  .preset-btn .sub{ display:block; color:var(--text-faint); font-size:0.68rem; margin-top:0.15rem; }
+
+  /* ---- Stage ---- */
+  .stage-col{ display:flex; flex-direction:column; gap:0.7rem; }
+  .stage{
+    position:relative; width:100%; aspect-ratio:7/5;
+    border-radius:10px; overflow:hidden;
+    border:1px solid var(--panel-border-strong);
+    background:#03040a;
+    box-shadow:0 0 0 1px rgba(0,0,0,0.4), 0 20px 60px -20px rgba(0,0,0,0.7), inset 0 0 40px rgba(0,0,0,0.5);
+  }
+  .stage canvas{ position:absolute; inset:0; width:100%; height:100%; display:block; }
+  .stage .handles{ position:absolute; inset:0; }
+  .handle{
+    position:absolute; width:22px; height:22px; margin:-11px 0 0 -11px;
+    border-radius:50%; cursor:grab; touch-action:none;
+    display:flex; align-items:center; justify-content:center;
+    font-family:var(--mono); font-size:0.62rem; font-weight:700; color:#03040a;
+    box-shadow:0 0 0 2px rgba(6,8,16,0.85), 0 0 14px rgba(0,0,0,0.6);
+  }
+  .handle:active{ cursor:grabbing; }
+  .handle.h1{ background:var(--cyan); box-shadow:0 0 0 2px rgba(6,8,16,0.85), 0 0 16px rgba(79,227,212,0.9); }
+  .handle.h2{ background:var(--amber); box-shadow:0 0 0 2px rgba(6,8,16,0.85), 0 0 16px rgba(245,185,66,0.9); }
+  .stage-foot{
+    display:flex; justify-content:space-between; align-items:center;
+    font-family:var(--mono); font-size:0.68rem; color:var(--text-faint); padding:0 0.15rem;
+  }
+  .stage-foot .legend{ display:flex; gap:1rem; align-items:center; }
+  .stage-foot .legend span{ display:flex; align-items:center; gap:0.35em; }
+  .swatch{ width:9px; height:9px; border-radius:50%; display:inline-block; }
+
+  /* ---- Readouts panel ---- */
+  .formula-box{
+    background:rgba(0,0,0,0.35); border:1px solid var(--panel-border);
+    border-radius:8px; padding:0.9rem 0.7rem; text-align:center; margin-bottom:1.3rem;
+  }
+  .formula-box math{ font-size:1.28rem; color:var(--cyan); }
+  .formula-box .fnote{ margin-top:0.35rem; font-family:var(--mono); font-size:0.64rem; color:var(--text-faint); }
+
+  .metric{ margin-bottom:1.15rem; }
+  .metric:last-child{ margin-bottom:0; }
+  .metric-head{
+    display:flex; justify-content:space-between; align-items:baseline; margin-bottom:0.4rem;
+  }
+  .metric-name{ font-size:0.72rem; letter-spacing:0.05em; color:var(--text-dim); }
+  .metric-val{ font-family:var(--mono); font-size:1rem; color:var(--text); font-variant-numeric:tabular-nums; }
+  .metric-bar{
+    height:7px; border-radius:4px; background:rgba(255,255,255,0.05);
+    border:1px solid var(--panel-border); overflow:hidden;
+  }
+  .metric-bar > i{
+    display:block; height:100%; width:0%; border-radius:4px;
+    background:linear-gradient(90deg, var(--bar-a), var(--bar-b));
+  }
+  #m-entropy{ --bar-a:#3fb8ff; --bar-b:#4fe3d4; }
+  #m-conc{ --bar-a:#f5b942; --bar-b:#ffe08a; }
+  #m-explore{ --bar-a:#8b7ff0; --bar-b:#c9c2ff; }
+  .metric .hint{ margin-top:0.3rem; font-size:0.63rem; color:var(--text-faint); line-height:1.4; }
+
+  ::selection{ background:rgba(79,227,212,0.3); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Energy<span>Scape</span></h1>
+    <p class="tagline">Turn equations into intuition: sculpt an energy landscape and watch probability move.</p>
+    <div class="rule"></div>
+  </header>
+
+  <div class="app">
+    <!-- LEFT: CONTROLS -->
+    <div class="panel">
+      <h2>Controls</h2>
+
+      <div class="ctrl-group">
+        <div class="ctrl-label"><b>Temperature</b><span class="ctrl-val" id="val-T">0.30</span></div>
+        <input type="range" id="slider-T" min="0" max="1000" step="1">
+      </div>
+
+      <div class="ctrl-group">
+        <div class="ctrl-label"><b>Barrier height <i>b</i></b><span class="ctrl-val" id="val-b">1.20</span></div>
+        <input type="range" id="slider-b" min="0" max="300" step="1">
+      </div>
+
+      <div class="ctrl-group">
+        <div class="ctrl-label"><span class="well-dot" style="background:var(--cyan)"></span><b>Well depth d&#8321;</b><span class="ctrl-val" id="val-d1">1.80</span></div>
+        <input type="range" id="slider-d1" min="0" max="300" step="1">
+      </div>
+
+      <div class="ctrl-group">
+        <div class="ctrl-label"><span class="well-dot" style="background:var(--amber)"></span><b>Well depth d&#8322;</b><span class="ctrl-val" id="val-d2">1.80</span></div>
+        <input type="range" id="slider-d2" min="0" max="300" step="1">
+      </div>
+
+      <div class="ctrl-group">
+        <div class="ctrl-label"><b>Presets</b></div>
+        <div class="presets">
+          <button class="preset-btn" data-preset="single">Single stable state
+            <span class="sub">one basin dominates the landscape</span></button>
+          <button class="preset-btn" data-preset="competing">Competing hypotheses
+            <span class="sub">two comparable wells, real barrier</span></button>
+          <button class="preset-btn" data-preset="collapse">Mode collapse
+            <span class="sub">low T, high barrier &mdash; dynamics freeze</span></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- CENTER: STAGE -->
+    <div class="stage-col">
+      <div class="stage" id="stage">
+        <canvas id="canvas-field"></canvas>
+        <canvas id="canvas-particles"></canvas>
+        <div class="handles" id="handles">
+          <div class="handle h1" id="handle-1" title="Drag to move well 1">1</div>
+          <div class="handle h2" id="handle-2" title="Drag to move well 2">2</div>
+        </div>
+      </div>
+      <div class="stage-foot">
+        <div class="legend">
+          <span><i class="swatch" style="background:#3e4a89"></i>low E</span>
+          <span><i class="swatch" style="background:#fde725"></i>high E</span>
+          <span><i class="swatch" style="background:rgba(255,255,255,0.65)"></i>particle</span>
+        </div>
+        <div>N = 2000 &middot; overdamped Langevin</div>
+      </div>
+    </div>
+
+    <!-- RIGHT: READOUTS -->
+    <div class="panel">
+      <h2>Live Readouts</h2>
+
+      <div class="formula-box">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <mrow>
+            <mi>p</mi><mo>(</mo><mi>x</mi><mo>)</mo>
+            <mo>&#8733;</mo>
+            <mi>exp</mi><mo>&#8289;</mo><mo>(</mo>
+            <mo>&#8722;</mo>
+            <mfrac><mrow><mi>E</mi><mo>(</mo><mi>x</mi><mo>)</mo></mrow><mi>T</mi></mfrac>
+            <mo>)</mo>
+          </mrow>
+        </math>
+        <div class="fnote">stationary distribution of the Langevin walk</div>
+      </div>
+
+      <div class="metric">
+        <div class="metric-head"><span class="metric-name">ENTROPY &nbsp;H / H<sub>max</sub></span><span class="metric-val" id="txt-entropy">0.00</span></div>
+        <div class="metric-bar" id="m-entropy"><i></i></div>
+        <div class="hint">how spread-out p(x) is over the 128&times;128 grid</div>
+      </div>
+
+      <div class="metric">
+        <div class="metric-head"><span class="metric-name">MODE CONCENTRATION</span><span class="metric-val" id="txt-conc">0.00</span></div>
+        <div class="metric-bar" id="m-conc"><i></i></div>
+        <div class="hint">share of particles in the dominant basin</div>
+      </div>
+
+      <div class="metric">
+        <div class="metric-head"><span class="metric-name">EXPLORATION</span><span class="metric-val" id="txt-explore">0.00</span></div>
+        <div class="metric-bar" id="m-explore"><i></i></div>
+        <div class="hint">fraction of cells visited in the last 200 steps</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  // ---------------------------------------------------------------------
+  // Domain: normalized coordinates. Width:height ratio matches the 7:5
+  // canvas aspect ratio so Gaussian wells render as circles, not ellipses.
+  // ---------------------------------------------------------------------
+  const DOMAIN_W = 1.4, DOMAIN_H = 1.0;
+  const N_PARTICLES = 2000;
+  const DT = 0.0022;
+  const GRAD_CLAMP = 60;
+
+  const state = {
+    c1: {x: 0.46, y: 0.5},
+    c2: {x: 0.94, y: 0.5},
+    s1: 0.155, s2: 0.155, sb: 0.125,
+    d1: 1.8, d2: 1.8, b: 1.2, T: 0.3
+  };
+
+  function midpoint(p){ return {x:(p.c1.x+p.c2.x)/2, y:(p.c1.y+p.c2.y)/2}; }
+
+  function energyAt(x, y, p){
+    const dx1=x-p.c1.x, dy1=y-p.c1.y;
+    const dx2=x-p.c2.x, dy2=y-p.c2.y;
+    const m = midpoint(p);
+    const dxb=x-m.x, dyb=y-m.y;
+    const g1 = Math.exp(-(dx1*dx1+dy1*dy1)/(2*p.s1*p.s1));
+    const g2 = Math.exp(-(dx2*dx2+dy2*dy2)/(2*p.s2*p.s2));
+    const gb = Math.exp(-(dxb*dxb+dyb*dyb)/(2*p.sb*p.sb));
+    return -(p.d1*g1 + p.d2*g2) + p.b*gb;
+  }
+
+  const _g = new Float64Array(2);
+  function gradAt(x, y, p, out){
+    const dx1=x-p.c1.x, dy1=y-p.c1.y;
+    const dx2=x-p.c2.x, dy2=y-p.c2.y;
+    const m = midpoint(p);
+    const dxb=x-m.x, dyb=y-m.y;
+    const g1 = Math.exp(-(dx1*dx1+dy1*dy1)/(2*p.s1*p.s1));
+    const g2 = Math.exp(-(dx2*dx2+dy2*dy2)/(2*p.s2*p.s2));
+    const gb = Math.exp(-(dxb*dxb+dyb*dyb)/(2*p.sb*p.sb));
+    const s1sq=p.s1*p.s1, s2sq=p.s2*p.s2, sbsq=p.sb*p.sb;
+    out[0] = p.d1*g1*dx1/s1sq + p.d2*g2*dx2/s2sq - p.b*gb*dxb/sbsq;
+    out[1] = p.d1*g1*dy1/s1sq + p.d2*g2*dy2/s2sq - p.b*gb*dyb/sbsq;
+  }
+
+  // ---------------------------------------------------------------------
+  // Gaussian noise (Box-Muller with cached spare)
+  // ---------------------------------------------------------------------
+  let spare = null;
+  function gaussianRandom(){
+    if (spare !== null){ const v = spare; spare = null; return v; }
+    let u, v, s;
+    do{
+      u = Math.random()*2-1; v = Math.random()*2-1; s = u*u+v*v;
+    } while (s >= 1 || s === 0);
+    const mul = Math.sqrt(-2*Math.log(s)/s);
+    spare = v*mul;
+    return u*mul;
+  }
+
+  // ---------------------------------------------------------------------
+  // Particles
+  // ---------------------------------------------------------------------
+  const particles = new Float64Array(N_PARTICLES*2);
+  for (let k=0;k<N_PARTICLES;k++){
+    particles[k*2]   = Math.random()*DOMAIN_W;
+    particles[k*2+1] = Math.random()*DOMAIN_H;
+  }
+
+  // Exploration tracking grid. Scoped to the landscape's meaningful region
+  // (around the two wells) rather than the full domain, so a rare particle
+  // that thermally escapes into the flat E~=0 plain and free-diffuses
+  // doesn't single-handedly sweep the grid and peg the metric at 100%.
+  const EX_COLS = 28, EX_ROWS = 20;
+  const exploreLastVisit = new Int32Array(EX_COLS*EX_ROWS).fill(-1e9);
+  let globalStep = 0;
+
+  function exploreBounds(p){
+    const margin = 3.5*Math.max(p.s1, p.s2, p.sb);
+    return {
+      xmin: Math.min(p.c1.x, p.c2.x)-margin,
+      xmax: Math.max(p.c1.x, p.c2.x)+margin,
+      ymin: Math.min(p.c1.y, p.c2.y)-margin,
+      ymax: Math.max(p.c1.y, p.c2.y)+margin
+    };
+  }
+
+  function markVisited(x, y, bounds){
+    const bw = bounds.xmax-bounds.xmin, bh = bounds.ymax-bounds.ymin;
+    if (x<bounds.xmin || x>bounds.xmax || y<bounds.ymin || y>bounds.ymax) return;
+    let ci = Math.floor((x-bounds.xmin)/bw*EX_COLS);
+    let ri = Math.floor((y-bounds.ymin)/bh*EX_ROWS);
+    if (ci<0) ci=0; if (ci>=EX_COLS) ci=EX_COLS-1;
+    if (ri<0) ri=0; if (ri>=EX_ROWS) ri=EX_ROWS-1;
+    exploreLastVisit[ri*EX_COLS+ci] = globalStep;
+  }
+
+  function stepParticles(p, dt){
+    const noiseStd = Math.sqrt(2*dt*p.T);
+    const bounds = exploreBounds(p);
+    for (let k=0;k<N_PARTICLES;k++){
+      const ix=k*2, iy=k*2+1;
+      let x=particles[ix], y=particles[iy];
+      gradAt(x,y,p,_g);
+      let gx=_g[0], gy=_g[1];
+      const gnorm = Math.hypot(gx,gy);
+      if (gnorm>GRAD_CLAMP){ const s=GRAD_CLAMP/gnorm; gx*=s; gy*=s; }
+      x = x - dt*gx + noiseStd*gaussianRandom();
+      y = y - dt*gy + noiseStd*gaussianRandom();
+      if (x<0) x=-x; else if (x>DOMAIN_W) x=2*DOMAIN_W-x;
+      if (y<0) y=-y; else if (y>DOMAIN_H) y=2*DOMAIN_H-y;
+      particles[ix]=x; particles[iy]=y;
+      markVisited(x, y, bounds);
+    }
+    globalStep++;
+  }
+
+  // ---------------------------------------------------------------------
+  // Viridis-like colormap
+  // ---------------------------------------------------------------------
+  const VIRIDIS = [
+    [68,1,84],[72,40,120],[62,74,137],[49,104,142],
+    [38,130,142],[31,158,137],[53,183,121],[110,206,88],[253,231,37]
+  ];
+  function viridis(t, out){
+    t = t<0?0:(t>1?1:t);
+    const n = VIRIDIS.length-1;
+    const idx = t*n;
+    const i0 = Math.floor(idx);
+    const i1 = Math.min(i0+1, n);
+    const f = idx-i0;
+    const c0=VIRIDIS[i0], c1=VIRIDIS[i1];
+    out[0] = c0[0]+(c1[0]-c0[0])*f;
+    out[1] = c0[1]+(c1[1]-c0[1])*f;
+    out[2] = c0[2]+(c1[2]-c0[2])*f;
+  }
+
+  // ---------------------------------------------------------------------
+  // Marching squares (contour lines)
+  // ---------------------------------------------------------------------
+  function marchingSquares(field, cols, rows, level, segs){
+    const lerp=(ax,ay,bx,by,va,vb)=>{
+      const t=(level-va)/(vb-va);
+      return [ax+(bx-ax)*t, ay+(by-ay)*t];
+    };
+    for (let j=0;j<rows-1;j++){
+      for (let i=0;i<cols-1;i++){
+        const vBL=field[j*cols+i], vBR=field[j*cols+i+1];
+        const vTL=field[(j+1)*cols+i], vTR=field[(j+1)*cols+i+1];
+        let idx=0;
+        if (vTL>level) idx|=8;
+        if (vTR>level) idx|=4;
+        if (vBR>level) idx|=2;
+        if (vBL>level) idx|=1;
+        if (idx===0||idx===15) continue;
+        const top    = ()=>lerp(i,j+1,i+1,j+1,vTL,vTR);
+        const right  = ()=>lerp(i+1,j+1,i+1,j,vTR,vBR);
+        const bottom = ()=>lerp(i,j,i+1,j,vBL,vBR);
+        const left   = ()=>lerp(i,j+1,i,j,vTL,vBL);
+        const pairs = {
+          1:[[left,bottom]], 2:[[bottom,right]], 3:[[left,right]],
+          4:[[right,top]],   5:[[left,top],[bottom,right]],
+          6:[[bottom,top]],  7:[[left,top]],
+          8:[[top,left]],    9:[[top,bottom]],
+          10:[[top,right],[left,bottom]], 11:[[top,right]],
+          12:[[right,left]], 13:[[bottom,right]],
+          14:[[left,bottom]]
+        };
+        const ls = pairs[idx];
+        if (!ls) continue;
+        for (const [fa,fb] of ls){
+          const a=fa(), b=fb();
+          segs.push(a[0],a[1],b[0],b[1]);
+        }
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // Canvas setup
+  // ---------------------------------------------------------------------
+  const stage = document.getElementById('stage');
+  const cvField = document.getElementById('canvas-field');
+  const cvPart = document.getElementById('canvas-particles');
+  const ctxField = cvField.getContext('2d');
+  const ctxPart = cvPart.getContext('2d', {alpha:true});
+
+  const FIELD_COLS = 140, FIELD_ROWS = 100;
+  const fieldE = new Float64Array(FIELD_COLS*FIELD_ROWS);
+  const offCanvas = document.createElement('canvas');
+  offCanvas.width = FIELD_COLS; offCanvas.height = FIELD_ROWS;
+  const offCtx = offCanvas.getContext('2d');
+  const offImg = offCtx.createImageData(FIELD_COLS, FIELD_ROWS);
+
+  let dpr = Math.max(1, window.devicePixelRatio||1);
+  let fieldDirty = true;
+
+  function resizeCanvases(){
+    const rect = stage.getBoundingClientRect();
+    dpr = Math.max(1, window.devicePixelRatio||1);
+    const w = Math.max(2, Math.round(rect.width*dpr));
+    const h = Math.max(2, Math.round(rect.height*dpr));
+    for (const cv of [cvField, cvPart]){
+      if (cv.width!==w || cv.height!==h){ cv.width=w; cv.height=h; }
+    }
+    fieldDirty = true;
+  }
+
+  function renderField(){
+    const rgb = [0,0,0];
+    let min=Infinity, max=-Infinity;
+    for (let j=0;j<FIELD_ROWS;j++){
+      const y = (j+0.5)/FIELD_ROWS*DOMAIN_H;
+      for (let i=0;i<FIELD_COLS;i++){
+        const x = (i+0.5)/FIELD_COLS*DOMAIN_W;
+        const e = energyAt(x,y,state);
+        fieldE[j*FIELD_COLS+i] = e;
+        if (e<min) min=e; if (e>max) max=e;
+      }
+    }
+    const range = (max-min)||1e-9;
+    for (let j=0;j<FIELD_ROWS;j++){
+      for (let i=0;i<FIELD_COLS;i++){
+        const e = fieldE[j*FIELD_COLS+i];
+        const t = (e-min)/range;
+        viridis(t, rgb);
+        const flippedJ = FIELD_ROWS-1-j; // canvas y grows downward, domain y=0 is top already
+        const p = (j*FIELD_COLS+i)*4;
+        offImg.data[p]=rgb[0]; offImg.data[p+1]=rgb[1]; offImg.data[p+2]=rgb[2]; offImg.data[p+3]=255;
+      }
+    }
+    offCtx.putImageData(offImg, 0, 0);
+
+    const W = cvField.width, H = cvField.height;
+    ctxField.imageSmoothingEnabled = true;
+    ctxField.clearRect(0,0,W,H);
+    ctxField.drawImage(offCanvas, 0, 0, W, H);
+
+    // contour lines
+    const levels = 7;
+    ctxField.strokeStyle = 'rgba(255,255,255,0.10)';
+    ctxField.lineWidth = Math.max(1, dpr*0.7);
+    const sx = W/FIELD_COLS, sy = H/FIELD_ROWS;
+    const segs = [];
+    for (let l=1; l<levels; l++){
+      const level = min + range*l/levels;
+      segs.length = 0;
+      marchingSquares(fieldE, FIELD_COLS, FIELD_ROWS, level, segs);
+      ctxField.beginPath();
+      for (let s=0; s<segs.length; s+=4){
+        ctxField.moveTo(segs[s]*sx, segs[s+1]*sy);
+        ctxField.lineTo(segs[s+2]*sx, segs[s+3]*sy);
+      }
+      ctxField.stroke();
+    }
+  }
+
+  function renderParticles(){
+    const W = cvPart.width, H = cvPart.height;
+    ctxPart.clearRect(0,0,W,H);
+    ctxPart.fillStyle = 'rgba(255,255,255,0.55)';
+    const r = Math.max(1, 1.4*dpr);
+    for (let k=0;k<N_PARTICLES;k++){
+      const x = particles[k*2]/DOMAIN_W*W;
+      const y = particles[k*2+1]/DOMAIN_H*H;
+      ctxPart.fillRect(x-r/2, y-r/2, r, r);
+    }
+  }
+
+  function updateHandlePositions(){
+    const h1 = document.getElementById('handle-1');
+    const h2 = document.getElementById('handle-2');
+    h1.style.left = (state.c1.x/DOMAIN_W*100)+'%';
+    h1.style.top  = (state.c1.y/DOMAIN_H*100)+'%';
+    h2.style.left = (state.c2.x/DOMAIN_W*100)+'%';
+    h2.style.top  = (state.c2.y/DOMAIN_H*100)+'%';
+  }
+
+  // ---------------------------------------------------------------------
+  // Metrics
+  // ---------------------------------------------------------------------
+  const METRIC_N = 128;
+  function computeMetrics(p){
+    let sum = 0;
+    const pf = new Float64Array(METRIC_N*METRIC_N);
+    for (let j=0;j<METRIC_N;j++){
+      const y=(j+0.5)/METRIC_N*DOMAIN_H;
+      for (let i=0;i<METRIC_N;i++){
+        const x=(i+0.5)/METRIC_N*DOMAIN_W;
+        const val = Math.exp(-energyAt(x,y,p)/p.T);
+        pf[j*METRIC_N+i]=val; sum+=val;
+      }
+    }
+    let H=0;
+    for (let idx=0; idx<pf.length; idx++){
+      const pi = pf[idx]/sum;
+      if (pi>1e-300) H -= pi*Math.log(pi);
+    }
+    const Hnorm = H/Math.log(METRIC_N*METRIC_N);
+
+    // Assign each particle to whichever well pulls harder on it alone
+    // (depth-weighted attraction), not just nearest geometric center --
+    // a deeper well has a larger basin of attraction than its neighbor.
+    let cnt1=0, cnt2=0;
+    for (let k=0;k<N_PARTICLES;k++){
+      const x=particles[k*2], y=particles[k*2+1];
+      const dx1=x-p.c1.x, dy1=y-p.c1.y;
+      const dx2=x-p.c2.x, dy2=y-p.c2.y;
+      const pull1 = p.d1*Math.exp(-(dx1*dx1+dy1*dy1)/(2*p.s1*p.s1));
+      const pull2 = p.d2*Math.exp(-(dx2*dx2+dy2*dy2)/(2*p.s2*p.s2));
+      if (pull1>=pull2) cnt1++; else cnt2++;
+    }
+    const concentration = Math.max(cnt1,cnt2)/N_PARTICLES;
+
+    let visited=0;
+    for (let idx=0; idx<exploreLastVisit.length; idx++){
+      if (globalStep-exploreLastVisit[idx] <= 200) visited++;
+    }
+    const exploration = visited/exploreLastVisit.length;
+
+    return {entropy:Hnorm, concentration, exploration};
+  }
+
+  const metricsTarget = {entropy:0.5, concentration:0.5, exploration:0.3};
+  const metricsDisplay = {entropy:0.5, concentration:0.5, exploration:0.3};
+
+  function updateMetricsUI(){
+    const eEl = document.getElementById('m-entropy').firstElementChild;
+    const cEl = document.getElementById('m-conc').firstElementChild;
+    const xEl = document.getElementById('m-explore').firstElementChild;
+    eEl.style.width = (metricsDisplay.entropy*100).toFixed(1)+'%';
+    cEl.style.width = (metricsDisplay.concentration*100).toFixed(1)+'%';
+    xEl.style.width = (metricsDisplay.exploration*100).toFixed(1)+'%';
+    document.getElementById('txt-entropy').textContent = metricsDisplay.entropy.toFixed(2);
+    document.getElementById('txt-conc').textContent = metricsDisplay.concentration.toFixed(2);
+    document.getElementById('txt-explore').textContent = metricsDisplay.exploration.toFixed(2);
+  }
+
+  // ---------------------------------------------------------------------
+  // Slider wiring
+  // ---------------------------------------------------------------------
+  const T_MIN=0.05, T_MAX=2.0;
+  function sliderToT(v){ // v in [0,1000]
+    const f = v/1000;
+    return Math.pow(10, Math.log10(T_MIN) + f*(Math.log10(T_MAX)-Math.log10(T_MIN)));
+  }
+  function tToSlider(T){
+    const f = (Math.log10(T)-Math.log10(T_MIN))/(Math.log10(T_MAX)-Math.log10(T_MIN));
+    return Math.round(f*1000);
+  }
+
+  const sliderT = document.getElementById('slider-T');
+  const sliderB = document.getElementById('slider-b');
+  const sliderD1 = document.getElementById('slider-d1');
+  const sliderD2 = document.getElementById('slider-d2');
+
+  function syncSlidersFromState(){
+    sliderT.value = tToSlider(state.T);
+    sliderB.value = Math.round(state.b*100);
+    sliderD1.value = Math.round(state.d1*100);
+    sliderD2.value = Math.round(state.d2*100);
+    updateSliderLabels();
+  }
+  function updateSliderLabels(){
+    document.getElementById('val-T').textContent = state.T.toFixed(2);
+    document.getElementById('val-b').textContent = state.b.toFixed(2);
+    document.getElementById('val-d1').textContent = state.d1.toFixed(2);
+    document.getElementById('val-d2').textContent = state.d2.toFixed(2);
+  }
+
+  sliderT.addEventListener('input', ()=>{ state.T = sliderToT(+sliderT.value); updateSliderLabels(); fieldDirty=true; });
+  sliderB.addEventListener('input', ()=>{ state.b = +sliderB.value/100; updateSliderLabels(); fieldDirty=true; });
+  sliderD1.addEventListener('input', ()=>{ state.d1 = +sliderD1.value/100; updateSliderLabels(); fieldDirty=true; });
+  sliderD2.addEventListener('input', ()=>{ state.d2 = +sliderD2.value/100; updateSliderLabels(); fieldDirty=true; });
+
+  // ---------------------------------------------------------------------
+  // Draggable well handles
+  // ---------------------------------------------------------------------
+  function attachDrag(handleEl, key){
+    let dragging = false;
+    function toDomain(clientX, clientY){
+      const rect = stage.getBoundingClientRect();
+      let nx = (clientX-rect.left)/rect.width*DOMAIN_W;
+      let ny = (clientY-rect.top)/rect.height*DOMAIN_H;
+      nx = Math.min(DOMAIN_W, Math.max(0, nx));
+      ny = Math.min(DOMAIN_H, Math.max(0, ny));
+      return {x:nx, y:ny};
+    }
+    handleEl.addEventListener('pointerdown', (ev)=>{
+      dragging = true;
+      handleEl.setPointerCapture(ev.pointerId);
+      ev.preventDefault();
+    });
+    handleEl.addEventListener('pointermove', (ev)=>{
+      if (!dragging) return;
+      state[key] = toDomain(ev.clientX, ev.clientY);
+      updateHandlePositions();
+      fieldDirty = true;
+    });
+    handleEl.addEventListener('pointerup', (ev)=>{
+      dragging = false;
+      handleEl.releasePointerCapture(ev.pointerId);
+    });
+    handleEl.addEventListener('pointercancel', ()=>{ dragging=false; });
+  }
+  attachDrag(document.getElementById('handle-1'), 'c1');
+  attachDrag(document.getElementById('handle-2'), 'c2');
+
+  // ---------------------------------------------------------------------
+  // Presets (smooth ~800ms animated transitions on T,b,d1,d2)
+  // ---------------------------------------------------------------------
+  const PRESETS = {
+    single:    {d1:2.6, d2:0.35, b:0.25, T:0.30},
+    competing: {d1:1.8, d2:1.8,  b:1.6,  T:0.35},
+    collapse:  {d1:2.7, d2:1.9,  b:2.6,  T:0.08}
+  };
+
+  let anim = null;
+  function easeInOutCubic(t){ return t<0.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2; }
+
+  function animateToPreset(target){
+    anim = {
+      start: {d1:state.d1, d2:state.d2, b:state.b, logT:Math.log10(state.T)},
+      end:   {d1:target.d1, d2:target.d2, b:target.b, logT:Math.log10(target.T)},
+      t0: performance.now(),
+      dur: 800
+    };
+  }
+
+  document.querySelectorAll('.preset-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const key = btn.getAttribute('data-preset');
+      animateToPreset(PRESETS[key]);
+    });
+  });
+
+  function tickAnim(now){
+    if (!anim) return;
+    let t = (now-anim.t0)/anim.dur;
+    if (t>=1){ t=1; }
+    const e = easeInOutCubic(t);
+    state.d1 = anim.start.d1 + (anim.end.d1-anim.start.d1)*e;
+    state.d2 = anim.start.d2 + (anim.end.d2-anim.start.d2)*e;
+    state.b  = anim.start.b  + (anim.end.b -anim.start.b )*e;
+    state.T  = Math.pow(10, anim.start.logT + (anim.end.logT-anim.start.logT)*e);
+    syncSlidersFromState();
+    fieldDirty = true;
+    if (t>=1) anim = null;
+  }
+
+  // ---------------------------------------------------------------------
+  // Main loop
+  // ---------------------------------------------------------------------
+  let frameCount = 0;
+  const SMOOTH = 0.08;
+
+  function frame(now){
+    requestAnimationFrame(frame);
+    tickAnim(now);
+    stepParticles(state, DT);
+    frameCount++;
+
+    if (frameCount % 10 === 0){
+      const m = computeMetrics(state);
+      metricsTarget.entropy = m.entropy;
+      metricsTarget.concentration = m.concentration;
+      metricsTarget.exploration = m.exploration;
+    }
+    metricsDisplay.entropy += (metricsTarget.entropy-metricsDisplay.entropy)*SMOOTH;
+    metricsDisplay.concentration += (metricsTarget.concentration-metricsDisplay.concentration)*SMOOTH;
+    metricsDisplay.exploration += (metricsTarget.exploration-metricsDisplay.exploration)*SMOOTH;
+    updateMetricsUI();
+
+    if (fieldDirty){ renderField(); fieldDirty = false; }
+    renderParticles();
+  }
+
+  window.addEventListener('resize', resizeCanvases);
+  if (window.ResizeObserver){
+    new ResizeObserver(resizeCanvases).observe(stage);
+  }
+
+  resizeCanvases();
+  syncSlidersFromState();
+  updateHandlePositions();
+  renderField();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
